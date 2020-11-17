@@ -23,8 +23,8 @@ library("RColorBrewer")
 
 Globals...
 ```{r, globals}
-set.seed(597)
-SizeOfOurNetwork <- 40
+set.seed(59)
+SizeOfOurNetwork <- 50
 ProbOfAVertex <- 0.1
 ```
 
@@ -154,7 +154,7 @@ MoransI <- function(DistanceMx, NodeAttributes){
   MoranSum <- 0
   DenomSum <- 0
   AttributeMean <- mean(NodeAttributes)
-  cat("\nAttribute mean= ",AttributeMean)
+  #cat("\nAttribute mean= ",AttributeMean)
   for (i in 1:NoOfNodes){
     DenomSum <- DenomSum + (NodeAttributes[i]-AttributeMean) * (NodeAttributes[i]-AttributeMean) 
     for (j in 1:NoOfNodes){
@@ -177,7 +177,7 @@ cat("\nMorans-I: ",MoransI(DM,V(net)$MyAttribute),"    expectation= ",-1/(length
 ```
 
 Test it out...
-```{r, Tests}
+```{r, eval=FALSE, Tests}
 for (k in 1:10){
   net <- BuildRandomNetwork(SizeOfOurNetwork)
   for (i in 1:length(V(net)))
@@ -190,6 +190,32 @@ for (k in 1:10){
   cat("\nMorans-I: ",MoransI(DM,V(net)$MyAttribute),"    expectation= ",-1/(length(V(net)$MyAttribute)-1))
 
 }
+
+```
+
+Assessing null distributrion for Moran-s I via permutation tests
+```{r, null}
+PermutationTest <- function(ntwk,HowManyPermutations,WhichMeasure)
+{
+  Results <- rep(-9,HowManyPermutations)
+  for (i in 1:HowManyPermutations){
+    V(ntwk)$MyAttribute <- sample(V(ntwk)$MyAttribute,size=length(V(ntwk)$MyAttribute),replace=FALSE)
+    
+    if (WhichMeasure == 1)  # global Moran's-I
+    {
+      Results[i] <-  MoransI(DM,V(ntwk)$MyAttribute)
+    }else{
+      cat("\nUndefined measure for permuation test. Exit.")
+      break;
+    }
+  }
+  return (Results)
+}
+
+Results <-PermutationTest(net,200,1)
+hist(Results,breaks=20,col="grey")
+abline(v=MoransI(DM,V(net)$MyAttribute),col="red")
+abline(v=-1/(length(V(net)$MyAttribute)-1),col="seagreen")  # the expected value for Morans-I
 
 ```
 
@@ -228,7 +254,7 @@ SpatiallyCorrelatedLabels1 <- function(ntwk,CentralNode){
 Node degrees
 The function degree() has a mode of in for in-degree, out for out-degree, and all or total for
 total degree.
-```{r}
+```{r, eval=FALSE}
 deg <- degree(net, mode="all")
 plot(net, vertex.size=deg*2)
 hist(deg, breaks=1:vcount(net)-1, main="Histogram of node degree")
@@ -238,7 +264,7 @@ hist(deg, breaks=1:vcount(net)-1, main="Histogram of node degree")
 
 Erdos-Renyi random graph model
 (???n??? is number of nodes, ???m??? is the number of edges).
-```{r}
+```{r, eval=FALSE}
 er <- sample_gnm(n=100, m=200)
 plot(er, vertex.size=6, vertex.label=NA)
 ```
@@ -246,7 +272,7 @@ plot(er, vertex.size=6, vertex.label=NA)
 Barabasi-Albert preferential attachment model for scale-free graphs
 (n is number of nodes, power is the power of attachment (1 is linear); m is the number of edges
 added on each time step)
-```{r}
+```{r, eval=FALSE}
 ba <- sample_pa(n=100, power=1, m=1, directed=F)
 plot(ba, vertex.size=6, vertex.label=NA)
 ```
@@ -256,7 +282,7 @@ plot(ba, vertex.size=6, vertex.label=NA)
 Rewiring a graph
 each_edge() is a rewiring method that changes the edge endpoints uniformly randomly with a
 probability prob.
-```{r}
+```{r, eval=FALSE}
 set.seed((876))
 ba.rewired <- rewire(ba, each_edge(prob=0.1))
 lay <- layout_with_fr(ba.rewired)
