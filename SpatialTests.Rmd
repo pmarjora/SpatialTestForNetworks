@@ -24,8 +24,8 @@ library("RColorBrewer")
 Globals...
 ```{r, globals}
 set.seed(597)
-SizeOfOurNetwork <- 20
-ProbOfAVertex <- 0.25
+SizeOfOurNetwork <- 40
+ProbOfAVertex <- 0.1
 ```
 
 
@@ -136,13 +136,12 @@ plot(net, layout=l, vertex.color="cyan",)
 
 Distances between nodes:
 ```{r}
-distances(net,v=V(net)[1],to=V(net)[2])
-distances(net,v=(V(net)==9),to=(V(net)==18))
-distances(net,v=(V(net)==2),to=(V(net)==17))
+#distances(net,v=V(net)[1],to=V(net)[2])
+#distances(net,v=(V(net)==9),to=(V(net)==18))
+#distances(net,v=(V(net)==2),to=(V(net)==17))
+#distances(net,v=V(net),to=V(net))
 
-distances(net,v=V(net),to=V(net))
 DM <- distances(net,v=V(net),to=V(net))
-
 
 ```
 
@@ -196,22 +195,30 @@ for (k in 1:10){
 
 Assigning spatially correlated node labels
 ```{r, Correlated}
-# Pick a node at random
-CentralNode <- sample(1:SizeOfOurNetwork,1)
-cat("\nCentralNode: ",CentralNode)
-# label it and all its neighbors 1, and everything else 0.
-V(net)$MyAttribute <- 0
-V(net)$MyAttribute[CentralNode] <- 1
-for (i in 1:SizeOfOurNetwork){
-  if (distances(net,CentralNode,i) == 1){
-    V(net)$MyAttribute[i] <- 1
-  }
+SpatiallyCorrelatedLabels1 <- function(ntwk,CentralNode){
+
+  # label it and all its neighbors 1, and everything else 0.
+  V(ntwk)$MyAttribute <- 0
+  V(ntwk)$MyAttribute[CentralNode] <- 1
+  for (i in 1:SizeOfOurNetwork){
+    #if (distances(ntwk,CentralNode,i) == 1){
+    #  V(ntwk)$MyAttribute[i] <- 1
+    #}
+    if (i != CentralNode){
+      V(ntwk)$MyAttribute[i] <- 1/distances(ntwk,CentralNode,i)
+    }
+  } 
+  return (ntwk)
 }
 
-  plot(net, edge.arrow.size=.5, vertex.label.color="black", vertex.label.dist=1.5,
-  vertex.size=4+10*V(net)$MyAttribute)
+  # Pick a focal node at random
+  FocalNode <- sample(1:length(net),1)
+  cat("\nFocalNode: ",FocalNode)
+  newnet <- SpatiallyCorrelatedLabels1(net,FocalNode)
+  plot(newnet, edge.arrow.size=.5, vertex.color=ifelse(V(newnet)==FocalNode,"blue","red"), vertex.label.dist=1.5,
+  vertex.size=4+10*V(newnet)$MyAttribute)
   
-  cat("\nMorans-I: ",MoransI(distances(net,v=V(net),to=V(net)),V(net)$MyAttribute),"    expectation= ",-1/(length(V(net)$MyAttribute)-1))
+  cat("\nMorans-I: ",MoransI(distances(newnet,v=V(newnet),to=V(newnet)),V(newnet)$MyAttribute),"    expectation= ",-1/(length(V(newnet)$MyAttribute)-1))
 
 ```
 
