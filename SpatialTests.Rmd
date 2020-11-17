@@ -106,7 +106,7 @@ plot(net, layout=l, vertex.color="cyan",)
 ```
 
 Edges, vertices and entire mx can be accessed as follows: (nice tutorial at https://kateto.net/wp-content/uploads/2016/01/NetSciX_2016_Workshop.pdf)
-```{r}
+```{r, eval=FALSE}
 E(net)
 V(net)
 net[]
@@ -184,12 +184,34 @@ for (k in 1:10){
   for (i in 1:length(V(net)))
     V(net)$MyAttribute[i] <- runif(1)
   vertex_attr(net)
+  DM <- distances(net,v=V(net),to=V(net))
   plot(net, edge.arrow.size=.5, vertex.label.color="black", vertex.label.dist=1.5,
   vertex.size=4+10*V(net)$MyAttribute)
   
   cat("\nMorans-I: ",MoransI(DM,V(net)$MyAttribute),"    expectation= ",-1/(length(V(net)$MyAttribute)-1))
 
 }
+
+```
+
+Assigning spatially correlated node labels
+```{r, Correlated}
+# Pick a node at random
+CentralNode <- sample(1:SizeOfOurNetwork,1)
+cat("\nCentralNode: ",CentralNode)
+# label it and all its neighbors 1, and everything else 0.
+V(net)$MyAttribute <- 0
+V(net)$MyAttribute[CentralNode] <- 1
+for (i in 1:SizeOfOurNetwork){
+  if (distances(net,CentralNode,i) == 1){
+    V(net)$MyAttribute[i] <- 1
+  }
+}
+
+  plot(net, edge.arrow.size=.5, vertex.label.color="black", vertex.label.dist=1.5,
+  vertex.size=4+10*V(net)$MyAttribute)
+  
+  cat("\nMorans-I: ",MoransI(distances(net,v=V(net),to=V(net)),V(net)$MyAttribute),"    expectation= ",-1/(length(V(net)$MyAttribute)-1))
 
 ```
 
