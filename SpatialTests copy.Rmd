@@ -23,9 +23,9 @@ library("RColorBrewer")
 
 Globals...
 ```{r, globals}
-set.seed(597)
-SizeOfOurNetwork <- 20
-ProbOfAVertex <- 0.25
+set.seed(59)
+SizeOfOurNetwork <- 50
+ProbOfAVertex <- 0.1
 ```
 
 
@@ -114,8 +114,8 @@ net[]
 
 Add attributes to the network, vertices, or edges as follows
 ```{r}
-for (i in 1:length(V(net)))
-  V(net)$MyAttribute[i] <- runif(1)
+#for (i in 1:length(V(net)))
+  V(net)$MyAttribute <- runif(length(V(net)),0,1)
 vertex_attr(net)
 plot(net, edge.arrow.size=.5, vertex.label.color="black", vertex.label.dist=1.5,
 vertex.size=4+10*V(net)$MyAttribute)
@@ -136,13 +136,12 @@ plot(net, layout=l, vertex.color="cyan",)
 
 Distances between nodes:
 ```{r}
-distances(net,v=V(net)[1],to=V(net)[2])
-distances(net,v=(V(net)==9),to=(V(net)==18))
-distances(net,v=(V(net)==2),to=(V(net)==17))
+#distances(net,v=V(net)[1],to=V(net)[2])
+#distances(net,v=(V(net)==9),to=(V(net)==18))
+#distances(net,v=(V(net)==2),to=(V(net)==17))
+#distances(net,v=V(net),to=V(net))
 
-distances(net,v=V(net),to=V(net))
 DM <- distances(net,v=V(net),to=V(net))
-
 
 ```
 
@@ -155,7 +154,7 @@ MoransI <- function(DistanceMx, NodeAttributes){
   MoranSum <- 0
   DenomSum <- 0
   AttributeMean <- mean(NodeAttributes)
-  cat("\nAttribute mean= ",AttributeMean)
+  #cat("\nAttribute mean= ",AttributeMean)
   for (i in 1:NoOfNodes){
     DenomSum <- DenomSum + (NodeAttributes[i]-AttributeMean) * (NodeAttributes[i]-AttributeMean) 
     for (j in 1:NoOfNodes){
@@ -178,7 +177,7 @@ cat("\nMorans-I: ",MoransI(DM,V(net)$MyAttribute),"    expectation= ",-1/(length
 ```
 
 Test it out...
-```{r, Tests}
+```{r, eval=FALSE, Tests}
 for (k in 1:10){
   net <- BuildRandomNetwork(SizeOfOurNetwork)
   for (i in 1:length(V(net)))
@@ -194,26 +193,99 @@ for (k in 1:10){
 
 ```
 
-Assigning spatially correlated node labels
-```{r, Correlated}
-# Pick a node at random
-CentralNode <- sample(1:SizeOfOurNetwork,1)
-cat("\nCentralNode: ",CentralNode)
-# label it and all its neighbors 1, and everything else 0.
-V(net)$MyAttribute <- 0
-V(net)$MyAttribute[CentralNode] <- 1
-for (i in 1:SizeOfOurNetwork){
-  if (distances(net,CentralNode,i) == 1){
-    V(net)$MyAttribute[i] <- 1
+Assessing null distributrion for Moran-s I via permutation tests
+```{r, null}
+PermutationTest <- function(ntwk,HowManyPermutations,WhichMeasure)
+{
+  Results <- rep(-9,HowManyPermutations)
+  for (i in 1:HowManyPermutations){
+    V(ntwk)$MyAttribute <- sample(V(ntwk)$MyAttribute,size=length(V(ntwk)$MyAttribute),replace=FALSE)
+    
+    if (WhichMeasure == 1)  # global Moran's-I
+    {
+      Results[i] <-  MoransI(DM,V(ntwk)$MyAttribute)
+    }else{
+      cat("\nUndefined measure for permuation test. Exit.")
+      break;
+    }
   }
+  return (Results)
 }
 
-  plot(net, edge.arrow.size=.5, vertex.label.color="black", vertex.label.dist=1.5,
-  vertex.size=4+10*V(net)$MyAttribute)
-  
-  cat("\nMorans-I: ",MoransI(distances(net,v=V(net),to=V(net)),V(net)$MyAttribute),"    expectation= ",-1/(length(V(net)$MyAttribute)-1))
+Results <-PermutationTest(net,200,1)
+hist(Results,breaks=20,col="grey")
+abline(v=MoransI(DM,V(net)$MyAttribute),col="red")
+abline(v=-1/(length(V(net)$MyAttribute)-1),col="seagreen")  # the expected value for Morans-I
 
 ```
+
+Assigning spatially correlated node labels
+```{r, Correlated}
+SpatiallyCorrelatedLabels1 <- function(ntwk,CentralNode){
+
+  # label it and all its neighbors 1, and everything else 0.
+  V(ntwk)$MyAttribute <- 0
+  V(ntwk)$MyAttribute[CentralNode] <- 1
+  for (i in 1:SizeOfOurNetwork){
+    #if (distances(ntwk,CentralNode,i) == 1){
+    #  V(ntwk)$MyAttribute[i] <- 1
+    #}
+    if (i != CentralNode){
+      V(ntwk)$MyAttribute[i] <- 1/distances(ntwk,CentralNode,i)
+    }
+  } 
+  return (ntwk)
+}
+
+  # Pick a focal node at random
+  FocalNode <- sample(1:length(net),1)
+  cat("\nFocalNode: ",FocalNode)
+  newnet <- SpatiallyCorrelatedLabels1(net,FocalNode)
+  plot(newnet, edge.arrow.size=.5, vertex.color=ifelse(V(newnet)==FocalNode,"blue","red"), vertex.label.dist=1.5,
+  vertex.size=4+10*V(newnet)$MyAttribute)
+  
+  cat("\nMorans-I: ",MoransI(distances(newnet,v=V(newnet),to=V(newnet)),V(newnet)$MyAttribute),"    expectation= ",-1/(length(V(newnet)$MyAttribute)-1))
+  
+  # Does it look significant?
+  Results2 <-PermutationTest(newnet,500,1)
+hist(Results2,breaks=20,col="grey")
+abline(v=MoransI(DM,V(newnet)$MyAttribute),col="red")
+
+
+```
+
+Local Moran's-I (LISA).
+We suppose that each node has some (binary or continuous) annotationxi, and standardize thosevalues by setting $z_i=x_i−\bar{x}$. The LISA measure of local clustering for each node, $i$, is then defined as 
+$ I_i = z_i \sum_{j \in J_i} w_{ij}z_j.$ 
+
+Here, $J_i$ is the set of neighbors of node $i$ (although the definition can be generalized in an obvious way), $w_{ij}$ is a weight that is used to characterize the distance between nodes. For example, the weight might measure the number of edges on the shortest path between nodes $i$ and $j$.
+```{r, LISA}
+
+MyLISA <- function(ntwk){
+  V(ntwk)$LISAstat <- rep(-9,length(V(ntwk)))
+  V(ntwk)$StandardizedAttribute <- rep(-9,length(V(ntwk)))
+  AttributeMean <- mean(V(ntwk)$MyAttribute)
+  # Standardize node labels
+  V(ntwk)$StandardizedAttribute <- V(ntwk)$MyAttribute - AttributeMean
+  for (i in 1:length(V(ntwk))){
+    L <- 0
+    for (j in 1:length(V(ntwk))){
+      if (distances(ntwk,v=V(ntwk)[i],to=V(ntwk)[j]) == 1){
+        # they are neighbors
+        L <- L + V(ntwk)$StandardizedAttribute[j]
+      }
+    }
+    L <- L * V(ntwk)$StandardizedAttribute[i]
+    V(ntwk)$LISAstat[i] <- L
+  }
+  return (ntwk)
+}
+LISAnet <- MyLISA(net)
+plot(LISAnet, edge.arrow.size=.5, vertex.label.color="black", vertex.label.dist=1.5,
+vertex.size=10*(0.01-min(V(LISAnet)$LISAstat)+V(LISAnet)$LISAstat))
+
+```
+
 
 
 * Random Other things
@@ -221,7 +293,7 @@ for (i in 1:SizeOfOurNetwork){
 Node degrees
 The function degree() has a mode of in for in-degree, out for out-degree, and all or total for
 total degree.
-```{r}
+```{r, eval=FALSE}
 deg <- degree(net, mode="all")
 plot(net, vertex.size=deg*2)
 hist(deg, breaks=1:vcount(net)-1, main="Histogram of node degree")
@@ -231,7 +303,7 @@ hist(deg, breaks=1:vcount(net)-1, main="Histogram of node degree")
 
 Erdos-Renyi random graph model
 (???n??? is number of nodes, ???m??? is the number of edges).
-```{r}
+```{r, eval=FALSE}
 er <- sample_gnm(n=100, m=200)
 plot(er, vertex.size=6, vertex.label=NA)
 ```
@@ -239,7 +311,7 @@ plot(er, vertex.size=6, vertex.label=NA)
 Barabasi-Albert preferential attachment model for scale-free graphs
 (n is number of nodes, power is the power of attachment (1 is linear); m is the number of edges
 added on each time step)
-```{r}
+```{r, eval=FALSE}
 ba <- sample_pa(n=100, power=1, m=1, directed=F)
 plot(ba, vertex.size=6, vertex.label=NA)
 ```
@@ -249,7 +321,7 @@ plot(ba, vertex.size=6, vertex.label=NA)
 Rewiring a graph
 each_edge() is a rewiring method that changes the edge endpoints uniformly randomly with a
 probability prob.
-```{r}
+```{r, eval=FALSE}
 set.seed((876))
 ba.rewired <- rewire(ba, each_edge(prob=0.1))
 lay <- layout_with_fr(ba.rewired)
