@@ -25,7 +25,7 @@ Globals...
 ```{r, globals}
 set.seed(59)
 SizeOfOurNetwork <- 50
-ProbOfAVertex <- 0.1
+ProbOfAVertex <- 0.05
 ```
 
 
@@ -144,6 +144,9 @@ Distances between nodes:
 DM <- distances(net,v=V(net),to=V(net))
 
 ```
+
+
+
 
 Calcluating Moran's (global) I
 ```{r, MoransI}
@@ -282,8 +285,7 @@ MyLISA <- function(ntwk){
 }
 LISAnet <- MyLISA(net)
 plot(LISAnet, edge.arrow.size=.5, vertex.label.color="black", vertex.label.dist=1.5,
-vertex.size=10*(0.01-min(V(LISAnet)$LISAstat)+V(LISAnet)$LISAstat))
-
+vertex.size=10*(0.01-min(V(LISAnet)$LISAstat)+V(LISAnet)$LISAstat)) 
 
 
 LISAval <- V(LISAnet)$LISAstat
@@ -324,7 +326,9 @@ hw_p <- ggplot(df, aes(x = dataN, y = LISAval))
 hw_p +
   geom_violin() + 
   geom_dotplot(binaxis='y', stackdir='center', dotsize=0.5) +
-  ggtitle("Left=base; right=permuted") 
+  ggtitle("Left=base; right=permuted") +
+  geom_hline(yintercept=V(LISAnet)$LISAstat[FocalNode], linetype=2, color="red", size=1)
+
   #scale_fill_brewer(palette="Dark2")
 #violinplot(data=df$LISAval)
 ```
