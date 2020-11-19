@@ -23,9 +23,9 @@ library("RColorBrewer")
 
 Globals...
 ```{r, globals}
-set.seed(59)
-SizeOfOurNetwork <- 50
-ProbOfAVertex <- 0.05
+set.seed(592)
+SizeOfOurNetwork <- 20
+ProbOfAVertex <- 0.15
 ```
 
 
@@ -64,16 +64,11 @@ BuildRandomNetwork <- function(NetSize){
   return (ThisNetwork)
 }
 
-
-
-
 # make it undirected
 #MyEdges2 <- MyEdges[MyEdges[,1]<MyEdges[,2],]
 # remove self-self edges
 #MyEdges3 <- t(apply(MyEdges,MARGIN=1,FUN=RemoveSelfLoops))
 # remove missing edges
-
-
 ```
 
 
@@ -85,7 +80,7 @@ library("igraph")
 
 net <- BuildRandomNetwork(SizeOfOurNetwork)
 class(net)
-net 
+#net 
 
 plot(net) 
 
@@ -114,9 +109,8 @@ net[]
 
 Add attributes to the network, vertices, or edges as follows
 ```{r}
-#for (i in 1:length(V(net)))
-  V(net)$MyAttribute <- runif(length(V(net)),0,1)
-vertex_attr(net)
+V(net)$MyAttribute <- runif(length(V(net)),0,1)
+#vertex_attr(net)
 plot(net, edge.arrow.size=.5, vertex.label.color="black", vertex.label.dist=1.5,
 vertex.size=4+10*V(net)$MyAttribute)
 ```
@@ -216,11 +210,92 @@ PermutationTest <- function(ntwk,HowManyPermutations,WhichMeasure)
 }
 
 Results <-PermutationTest(net,200,1)
-hist(Results,breaks=20,col="grey")
+hist(Results,breaks=20,col="grey",main="Null dist. Obs(red)  Exp(green)")
 abline(v=MoransI(DM,V(net)$MyAttribute),col="red")
 abline(v=-1/(length(V(net)$MyAttribute)-1),col="seagreen")  # the expected value for Morans-I
 
 ```
+
+
+Find immediate neighbors of a vertex
+```{r, neighbors}
+FindNeighbors <- function(ntwk,focnode)+{
+  nbrs<-NULL
+  for (i in 1:length(V(ntwk))){
+    if ((distances(ntwk,v=(V(ntwk)==focnode),to=(V(ntwk)==i))==1) & (i!=focnode)){
+      nbrs <- c(nbrs,i)
+    }
+  }
+  return(nbrs)
+}
+(FindNeighbors(net,5))
+(FindNeighbors(net,10))
+(FindNeighbors(net,15))
+```
+
+Smoothing the labels to make them correlated...
+```{r, smoother}
+Smoother <- function(ntwk,weight){
+  NewLabels<-rep(0,length(V(ntwk)))
+  for (i in 1:length(V(ntwk))){
+    naybrs <- FindNeighbors(ntwk,i)
+    NewL <- V(ntwk)$MyAttribute[i]
+    for (j in naybrs){
+      NewL <- NewL + weight * V(ntwk)$MyAttribute[j]
+    }
+    NewLabels[i]= NewL/(1+weight*length(naybrs)) 
+  }
+  return (NewLabels)
+}
+
+plot(net, edge.arrow.size=.5, vertex.label.color="black", vertex.label.dist=1.5,
+vertex.size=4+10*V(net)$MyAttribute)
+
+(V(net)$MyAttribute)
+V(net)$MyAttribute <- Smoother(net,0.5)
+(V(net)$MyAttribute)
+
+plot(net, edge.arrow.size=.5, vertex.label.color="black", vertex.label.dist=1.5,
+vertex.size=4+10*V(net)$MyAttribute)
+```
+
+So let's compare Moran's-I for random labels and smoother labels...
+```{r, compare}
+NTimes <- 100
+RandomMoransI <- rep(0,NTimes)
+SmoothMoransI <- rep(0,NTimes)
+for (i in 1:NTimes){
+  # generate a random graph with random labels
+  net <- BuildRandomNetwork(SizeOfOurNetwork)
+  for (j in 1:length(V(net)))
+    V(net)$MyAttribute[j] <- runif(1)
+  
+  # calculate distances between nodes
+  DM <- distances(net,v=V(net),to=V(net))
+
+  # calculate Moran's-I for this graph
+  RandomMoransI[i] <- MoransI(DM,V(net)$MyAttribute)
+  
+  # now smooth it and recalcluate Moran's-I
+  V(net)$MyAttribute <- Smoother(net,1)
+  SmoothMoransI[i] <- MoransI(DM,V(net)$MyAttribute)
+}
+
+# compare via a violin plot
+RandomMoransI <- cbind(rep("random",NTimes),RandomMoransI)
+SmoothMoransI <- cbind(rep("smooth",NTimes),SmoothMoransI)
+I <- rbind(RandomMoransI,SmoothMoransI)
+dfsm <- data.frame( "Smooth" = I[,1], "MoransI" = as.numeric(I[,2]))
+#df$dataN <- as.factor(df$dataN)
+
+hw_p <- ggplot(dfsm, aes(x = Smooth, y = MoransI)) +
+    geom_violin() + 
+    geom_dotplot(binaxis='y', stackdir='center', dotsize=0.5) +
+    ggtitle("Moran's-I as a function of whether or not we smooth the vertex attributes") 
+(hw_p)
+```
+
+
 
 Assigning spatially correlated node labels
 ```{r, Correlated}
@@ -337,6 +412,9 @@ hw_p +
 
 Read sbml files...
 ```{r, SBML}
+# if (!requireNamespace("BiocManager", quietly = TRUE))
+#    install.packages("BiocManager")
+# BiocManager::install("SBMLR")
 library(SBMLR)   # from Bioconductor
 #readSBML("Apoptosis_signaling_pathway.xml")
 arach=readSBML("2-arachidonoylglycerol_biosynthesis.xml")
@@ -346,9 +424,9 @@ if (!requireNamespace("BiocManager", quietly = TRUE))
     install.packages("BiocManager")
 BiocManager::install(version = "3.12")
 #source("https://bioconductor.org/biocLite.R")
-#biocLite("rsbml")
-BiocManager::install("rsbml")
-library(rsbml)
+##biocLite("rsbml")
+#BiocManager::install("rsbml")
+#library(rsbml)
 #file <- system.file("sbml", "GlycolysisLayout.xml", package = "rsbml")
 #  doc <- rsbml_read(file)
   
@@ -356,7 +434,7 @@ library(rsbml)
 #remotes::install_github("ahmohamed/NetPathMiner")
 # docs at https://rdrr.io/github/ahmohamed/NetPathMiner/man/SBML2igraph.html
 library(NetPathMiner)
-# the following is supposed to read an SBML o ject and parse it as an igraph
+# the following is supposed to read an SBML object and parse it as an igraph
 SBML2igraph("2-arachidonoylglycerol_biosynthesis.xml", parse.as = c("metabolic", "signaling"),
   miriam.attr = "all", gene.attr, expand.complexes, verbose = TRUE)
 
