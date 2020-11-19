@@ -342,6 +342,26 @@ library(SBMLR)   # from Bioconductor
 arach=readSBML("2-arachidonoylglycerol_biosynthesis.xml")
 #Apop=readSBML(file.path(system.file(package="SBMLR"), "Apoptosis_signaling_pathway.xml"))  
 
+if (!requireNamespace("BiocManager", quietly = TRUE))
+    install.packages("BiocManager")
+BiocManager::install(version = "3.12")
+#source("https://bioconductor.org/biocLite.R")
+#biocLite("rsbml")
+BiocManager::install("rsbml")
+library(rsbml)
+#file <- system.file("sbml", "GlycolysisLayout.xml", package = "rsbml")
+#  doc <- rsbml_read(file)
+  
+#install.packages("remotes")
+#remotes::install_github("ahmohamed/NetPathMiner")
+# docs at https://rdrr.io/github/ahmohamed/NetPathMiner/man/SBML2igraph.html
+library(NetPathMiner)
+# the following is supposed to read an SBML o ject and parse it as an igraph
+SBML2igraph("2-arachidonoylglycerol_biosynthesis.xml", parse.as = c("metabolic", "signaling"),
+  miriam.attr = "all", gene.attr, expand.complexes, verbose = TRUE)
+
+
+
 ```
 
 * Random Other things
