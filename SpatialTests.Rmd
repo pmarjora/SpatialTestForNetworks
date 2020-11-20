@@ -24,8 +24,8 @@ library("RColorBrewer")
 Globals...
 ```{r, globals}
 set.seed(593)
-SizeOfOurNetwork <- 50
-ProbOfAVertex <- 0.05
+SizeOfOurNetwork <- 10
+ProbOfAVertex <- 0.5
 ```
 
 
@@ -229,8 +229,7 @@ FindNeighbors <- function(ntwk,focnode)+{
   return(nbrs)
 }
 (FindNeighbors(net,5))
-(FindNeighbors(net,10))
-(FindNeighbors(net,15))
+(FindNeighbors(net,1))
 ```
 
 Smoothing the labels to make them correlated...
@@ -297,24 +296,64 @@ hw_p <- ggplot(dfsm, aes(x = Smooth, y = MoransI)) +
 
 More spatial correlation...
 Here, we use George's idea to generate data $y = (I_n − \rho W)^{−1} \times \epsilon$, where $\epsilon \sim MVN(0,I_n)$.
-× ", "  MV N(0, In)
-```{r}
-SARsmoother
-# Simulating a SAR model with only y
-n <- 10
-rho <- .5 # Spatial autocorrelation
-set.seed(12315)
-# Bernoulli graph
-W <- matrix(as.integer(runif(n*n)<.25), ncol = n)
-diag(W) <- 0
-W <- W/rowSums(W, na.rm = TRUE)
-# Some nodes are disconnected,
-(W)
-Z <- ifelse(W>0,1,0)
-W[!is.finite(W)] <- 0
+Since $\epsilon \sim MVN(0,I_n)$ the independent version has attrributes with $Normal(0,1)$ distribution.
+```{r, SARmodel}
+rho <- 0.5  # The degree of correlation 
+SARsmoother <- function(ntwk,rho)
+{
+#rho <- .5 # Spatial autocorrelation
+# form edge matrix
+  W <- as_adjacency_matrix(net, type = c("both"), names=FALSE, sparse=FALSE)
+  n <- length(W[1,])
+  #diag(W) <- 0
+  W2 <- W/rowSums(W, na.rm = TRUE)
 
+  # if nodes are disconnected, we will get NaNs, so set those to 0.
+  W2[!is.finite(W)] <- 0
+  
+  # generate the attributes
+  y <- solve(diag(n) - rho * W2) %*% rnorm(n)
+  return (y)
+}
 
-y <- solve(diag(n) - rho * W) %*% rnorm(n)
+attribs <- SARsmoother(net,0.5)
+net$MyAttributes <- SARsmoother(net,0.5)
+```
+
+Now write some tests for the above, comparing them to models in which the attrivbutes are Normal(0,1).
+```{r, SARtest}
+NT <- 100
+RandomMoransI <- rep(0,NT)
+SARsmoothMoransI <- rep(0,NT)
+for (i in 1:NTimes){
+  # generate a random graph with random labels
+  net <- BuildRandomNetwork(SizeOfOurNetwork)
+  for (j in 1:length(V(net)))
+    V(net)$MyAttribute[j] <- rnorm(0,1)
+  
+  # calculate distances between nodes
+  DM <- distances(net,v=V(net),to=V(net))
+
+  # calculate Moran's-I for this graph
+  RandomMoransI[i] <- MoransI(DM,V(net)$MyAttribute)
+  
+  # now smooth it and recalculate Moran's-I
+  V(net)$MyAttribute <- SARsmoother(net,0.5)
+  SARsmoothMoransI[i] <- MoransI(DM,V(net)$MyAttribute)
+}
+
+# compare via a violin plot
+RandomMoransI <- cbind(rep("random",NTimes),RandomMoransI)
+SARsmoothMoransI <- cbind(rep("smooth",NTimes),SARsmoothMoransI)
+I <- rbind(RandomMoransI,SARsmoothMoransI)
+dfsm <- data.frame( "Smooth" = I[,1], "MoransI" = as.numeric(I[,2]))
+#df$dataN <- as.factor(df$dataN)
+
+hw_p <- ggplot(dfsm, aes(x = Smooth, y = MoransI)) +
+    geom_violin() + 
+    geom_dotplot(binaxis='y', stackdir='center', dotsize=0.5, bin.width=60) +
+    ggtitle("Moran's-I as a function of whether or not we smooth using SAR") 
+(hw_p)
 ```
 
 
