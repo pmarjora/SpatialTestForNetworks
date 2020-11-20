@@ -23,9 +23,9 @@ library("RColorBrewer")
 
 Globals...
 ```{r, globals}
-set.seed(592)
-SizeOfOurNetwork <- 20
-ProbOfAVertex <- 0.15
+set.seed(593)
+SizeOfOurNetwork <- 50
+ProbOfAVertex <- 0.05
 ```
 
 
@@ -125,7 +125,7 @@ diameter(net, directed=F)
 
 diam <- get_diameter(net, directed=F)
 diam
-plot(net, layout=l, vertex.color="cyan",)
+#plot(net, layout=l, vertex.color="cyan",)
 ```
 
 Distances between nodes:
@@ -249,14 +249,14 @@ Smoother <- function(ntwk,weight){
 }
 
 plot(net, edge.arrow.size=.5, vertex.label.color="black", vertex.label.dist=1.5,
-vertex.size=4+10*V(net)$MyAttribute)
+vertex.size=4+10*V(net)$MyAttribute, main="Uniform attributes")
 
 (V(net)$MyAttribute)
 V(net)$MyAttribute <- Smoother(net,0.5)
 (V(net)$MyAttribute)
 
 plot(net, edge.arrow.size=.5, vertex.label.color="black", vertex.label.dist=1.5,
-vertex.size=4+10*V(net)$MyAttribute)
+vertex.size=4+10*V(net)$MyAttribute,main="smoothed attributes")
 ```
 
 So let's compare Moran's-I for random labels and smoother labels...
@@ -276,7 +276,7 @@ for (i in 1:NTimes){
   # calculate Moran's-I for this graph
   RandomMoransI[i] <- MoransI(DM,V(net)$MyAttribute)
   
-  # now smooth it and recalcluate Moran's-I
+  # now smooth it and recalculate Moran's-I
   V(net)$MyAttribute <- Smoother(net,1)
   SmoothMoransI[i] <- MoransI(DM,V(net)$MyAttribute)
 }
@@ -290,11 +290,32 @@ dfsm <- data.frame( "Smooth" = I[,1], "MoransI" = as.numeric(I[,2]))
 
 hw_p <- ggplot(dfsm, aes(x = Smooth, y = MoransI)) +
     geom_violin() + 
-    geom_dotplot(binaxis='y', stackdir='center', dotsize=0.5) +
+    geom_dotplot(binaxis='y', stackdir='center', dotsize=0.5, bin.width=60) +
     ggtitle("Moran's-I as a function of whether or not we smooth the vertex attributes") 
 (hw_p)
 ```
 
+More spatial correlation...
+Here, we use George's idea to generate data $y = (I_n − \rho W)^{−1} \times \epsilon$, where $\epsilon \sim MVN(0,I_n)$.
+× ", "  MV N(0, In)
+```{r}
+SARsmoother
+# Simulating a SAR model with only y
+n <- 10
+rho <- .5 # Spatial autocorrelation
+set.seed(12315)
+# Bernoulli graph
+W <- matrix(as.integer(runif(n*n)<.25), ncol = n)
+diag(W) <- 0
+W <- W/rowSums(W, na.rm = TRUE)
+# Some nodes are disconnected,
+(W)
+Z <- ifelse(W>0,1,0)
+W[!is.finite(W)] <- 0
+
+
+y <- solve(diag(n) - rho * W) %*% rnorm(n)
+```
 
 
 Assigning spatially correlated node labels
@@ -411,7 +432,7 @@ hw_p +
 
 
 Read sbml files...
-```{r, SBML}
+```{r, SBML, eval=FALSE}
 # if (!requireNamespace("BiocManager", quietly = TRUE))
 #    install.packages("BiocManager")
 # BiocManager::install("SBMLR")
