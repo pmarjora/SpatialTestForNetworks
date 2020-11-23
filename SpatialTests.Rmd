@@ -325,11 +325,11 @@ Now write some tests for the above, comparing them to models in which the attriv
 NT <- 100
 RandomMoransI <- rep(0,NT)
 SARsmoothMoransI <- rep(0,NT)
-for (i in 1:NTimes){
+for (i in 1:NT){
   # generate a random graph with random labels
   net <- BuildRandomNetwork(SizeOfOurNetwork)
-  for (j in 1:length(V(net)))
-    V(net)$MyAttribute[j] <- rnorm(0,1)
+
+  V(net)$MyAttribute <- rnorm(length(V(net)),0,1)
   
   # calculate distances between nodes
   DM <- distances(net,v=V(net),to=V(net))
