@@ -24,8 +24,8 @@ library("RColorBrewer")
 Globals...
 ```{r, globals}
 set.seed(593)
-SizeOfOurNetwork <- 10
-ProbOfAVertex <- 0.5
+SizeOfOurNetwork <- 40
+ProbOfAVertex <- 0.075
 ```
 
 
@@ -232,7 +232,7 @@ FindNeighbors <- function(ntwk,focnode)+{
 (FindNeighbors(net,1))
 ```
 
-Smoothing the labels to make them correlated...
+Smoothing the labels to make them correlated. Here we use a simple proof of principle scheme in ewhich we generate the labels independently and then jsmooth them by taking a weight average f each label and the label of its neighboriong vertices. Later on, we will try something more formal.
 ```{r, smoother}
 Smoother <- function(ntwk,weight){
   NewLabels<-rep(0,length(V(ntwk)))
@@ -266,8 +266,8 @@ SmoothMoransI <- rep(0,NTimes)
 for (i in 1:NTimes){
   # generate a random graph with random labels
   net <- BuildRandomNetwork(SizeOfOurNetwork)
-  for (j in 1:length(V(net)))
-    V(net)$MyAttribute[j] <- runif(1)
+  #for (j in 1:length(V(net)))
+    V(net)$MyAttribute <- rnorm(length(V(net)),0,1)
   
   # calculate distances between nodes
   DM <- distances(net,v=V(net),to=V(net))
@@ -285,7 +285,6 @@ RandomMoransI <- cbind(rep("random",NTimes),RandomMoransI)
 SmoothMoransI <- cbind(rep("smooth",NTimes),SmoothMoransI)
 I <- rbind(RandomMoransI,SmoothMoransI)
 dfsm <- data.frame( "Smooth" = I[,1], "MoransI" = as.numeric(I[,2]))
-#df$dataN <- as.factor(df$dataN)
 
 hw_p <- ggplot(dfsm, aes(x = Smooth, y = MoransI)) +
     geom_violin() + 
@@ -294,8 +293,8 @@ hw_p <- ggplot(dfsm, aes(x = Smooth, y = MoransI)) +
 (hw_p)
 ```
 
-More spatial correlation...
-Here, we use George's idea to generate data $y = (I_n − \rho W)^{−1} \times \epsilon$, where $\epsilon \sim MVN(0,I_n)$.
+And now for a more formal addition of spatial correlation, using correlated normals, where the degree of correlation depends upon the network structure (as originally proposed by George VY).
+So, we generate data $y = (I_n - \rho W)^{-1} \times \epsilon$, where $\epsilon \sim MVN(0,I_n)$.
 Since $\epsilon \sim MVN(0,I_n)$ the independent version has attrributes with $Normal(0,1)$ distribution.
 ```{r, SARmodel}
 rho <- 0.5  # The degree of correlation 
@@ -309,10 +308,17 @@ SARsmoother <- function(ntwk,rho)
   W2 <- W/rowSums(W, na.rm = TRUE)
 
   # if nodes are disconnected, we will get NaNs, so set those to 0.
-  W2[!is.finite(W)] <- 0
+  W2[!is.finite(W2)] <- 0
   
   # generate the attributes
   y <- solve(diag(n) - rho * W2) %*% rnorm(n)
+  
+  
+  # Check whether we generate spatial autocorrelation?
+  #library(ape)
+  #sc <- Moran.I(as.vector(y), W)
+  #cat("\np=",sc$p.value)
+
   return (y)
 }
 
@@ -322,23 +328,25 @@ net$MyAttributes <- SARsmoother(net,0.5)
 
 Now write some tests for the above, comparing them to models in which the attrivbutes are Normal(0,1).
 ```{r, SARtest}
-NT <- 100
+NT <- 200
 RandomMoransI <- rep(0,NT)
 SARsmoothMoransI <- rep(0,NT)
+set.seed(49)
 for (i in 1:NT){
   # generate a random graph with random labels
   net <- BuildRandomNetwork(SizeOfOurNetwork)
-
-  V(net)$MyAttribute <- rnorm(length(V(net)),0,1)
   
   # calculate distances between nodes
   DM <- distances(net,v=V(net),to=V(net))
 
+  # generate indepen dent vertex attributes from a MVNormal(0,1)
+  V(net)$MyAttribute <- rnorm(length(V(net)),0,1)
+  #V(net)$MyAttribute <- SARsmoother(net,0)
   # calculate Moran's-I for this graph
   RandomMoransI[i] <- MoransI(DM,V(net)$MyAttribute)
   
-  # now smooth it and recalculate Moran's-I
-  V(net)$MyAttribute <- SARsmoother(net,0.5)
+  # now generate spatial correlated vertex labels and recalculate Moran's-I
+  V(net)$MyAttribute <- SARsmoother(net,0.8)
   SARsmoothMoransI[i] <- MoransI(DM,V(net)$MyAttribute)
 }
 
@@ -354,6 +362,8 @@ hw_p <- ggplot(dfsm, aes(x = Smooth, y = MoransI)) +
     geom_dotplot(binaxis='y', stackdir='center', dotsize=0.5, bin.width=60) +
     ggtitle("Moran's-I as a function of whether or not we smooth using SAR") 
 (hw_p)
+
+
 ```
 
 
@@ -393,7 +403,7 @@ abline(v=MoransI(DM,V(newnet)$MyAttribute),col="red")
 ```
 
 Local Moran's-I (LISA).
-We suppose that each node has some (binary or continuous) annotationxi, and standardize those values by setting $z_i=x_i−\bar{x}$. The LISA measure of local clustering for each node, $i$, is then defined as 
+We suppose that each node has some (binary or continuous) annotationxi, and standardize those values by setting $z_i=x_i???\bar{x}$. The LISA measure of local clustering for each node, $i$, is then defined as 
 $ I_i = z_i \sum_{j \in J_i} w_{ij}z_j.$ 
 
 Here, $J_i$ is the set of neighbors of node $i$ (although the definition can be generalized in an obvious way), $w_{ij}$ is a weight that is used to characterize the distance between nodes. For example, the weight might measure the number of edges on the shortest path between nodes $i$ and $j$.
