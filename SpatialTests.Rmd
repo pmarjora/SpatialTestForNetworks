@@ -142,7 +142,7 @@ DM <- distances(net,v=V(net),to=V(net))
 
 
 
-Calcluating Moran's (global) I
+Calcluating Moran's (global) I. Moran's-I is defined as \[ I=\frac{N}{W}\frac{\sum_i \sum_j w_{ij} (x_i-\bar{x})(x_j-\bar{x})}{\sum_i(x_i-\bar{x})^2} \]
 ```{r, MoransI}
 
 MoransI <- function(DistanceMx, NodeAttributes){
@@ -359,7 +359,7 @@ dfsm <- data.frame( "Smooth" = I[,1], "MoransI" = as.numeric(I[,2]))
 
 hw_p <- ggplot(dfsm, aes(x = Smooth, y = MoransI)) +
     geom_violin() + 
-    geom_dotplot(binaxis='y', stackdir='center', dotsize=0.5, bin.width=60) +
+    #geom_dotplot(binaxis='y', stackdir='center', dotsize=0.5, bin.width=60) +
     ggtitle("Moran's-I as a function of whether or not we smooth using SAR") 
 (hw_p)
 
@@ -403,8 +403,7 @@ abline(v=MoransI(DM,V(newnet)$MyAttribute),col="red")
 ```
 
 Local Moran's-I (LISA).
-We suppose that each node has some (binary or continuous) annotationxi, and standardize those values by setting $z_i=x_i???\bar{x}$. The LISA measure of local clustering for each node, $i$, is then defined as 
-$ I_i = z_i \sum_{j \in J_i} w_{ij}z_j.$ 
+We suppose that each node has some (binary or continuous) annotation $x_i$, and standardize those values by setting $z_i=x_i-\bar{x}$. The LISA measure of local clustering for each node, $i$, is then defined as $I_i = z_i \sum_{j \in J_i} w_{ij}z_j.$ 
 
 Here, $J_i$ is the set of neighbors of node $i$ (although the definition can be generalized in an obvious way), $w_{ij}$ is a weight that is used to characterize the distance between nodes. For example, the weight might measure the number of edges on the shortest path between nodes $i$ and $j$.
 ```{r, LISA}
@@ -430,7 +429,7 @@ MyLISA <- function(ntwk){
 }
 LISAnet <- MyLISA(net)
 plot(LISAnet, edge.arrow.size=.5, vertex.label.color="black", vertex.label.dist=1.5,
-vertex.size=10*(0.01-min(V(LISAnet)$LISAstat)+V(LISAnet)$LISAstat)) 
+vertex.size=2*(0.01-min(V(LISAnet)$LISAstat)+V(LISAnet)$LISAstat)) 
 
 
 LISAval <- V(LISAnet)$LISAstat
@@ -443,7 +442,7 @@ PermNtwk <- net
 V(PermNtwk)$MyAttribute <- sample(V(PermNtwk)$MyAttribute,size=length(V(PermNtwk)$MyAttribute),replace=FALSE)
 LISAnetPerm <- MyLISA(PermNtwk)
 plot(LISAnetPerm, edge.arrow.size=.5, vertex.label.color="black", vertex.label.dist=1.5,
-vertex.size=10*(0.01-min(V(LISAnetPerm)$LISAstat)+V(LISAnetPerm)$LISAstat))
+vertex.size=2*(0.01-min(V(LISAnetPerm)$LISAstat)+V(LISAnetPerm)$LISAstat))
 
 
 LISAval<- V(LISAnetPerm)$LISAstat
@@ -455,7 +454,7 @@ PermNtwk2 <- net
 V(PermNtwk2)$MyAttribute <- sample(V(PermNtwk2)$MyAttribute,size=length(V(PermNtwk2)$MyAttribute),replace=FALSE)
 LISAnetPerm <- MyLISA(PermNtwk2)
 plot(LISAnetPerm, edge.arrow.size=.5, vertex.label.color="black", vertex.label.dist=1.5,
-vertex.size=10*(0.01-min(V(LISAnetPerm)$LISAstat)+V(LISAnetPerm)$LISAstat))
+vertex.size=2*(0.01-min(V(LISAnetPerm)$LISAstat)+V(LISAnetPerm)$LISAstat))
 LISAval <- V(LISAnetPerm)$LISAstat
 index <- seq(from=1, to=length(LISAval))
 dataN <- rep(3,length(LISAval))
