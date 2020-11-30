@@ -19,6 +19,10 @@ library("maps")
 library("ggplot2")
 library("geosphere")
 library("RColorBrewer")
+library(future.apply)
+library(parallel)
+
+
 ```
 
 Globals...
@@ -232,7 +236,7 @@ FindNeighbors <- function(ntwk,focnode)+{
 (FindNeighbors(net,1))
 ```
 
-Smoothing the labels to make them correlated. Here we use a simple proof of principle scheme in ewhich we generate the labels independently and then jsmooth them by taking a weight average f each label and the label of its neighboriong vertices. Later on, we will try something more formal.
+Smoothing the labels to make them correlated. Here we use a simple proof of principle scheme in ewhich we generate the labels independently and then smooth them by taking a weight average of each label and the label of its neighboring vertices. Later on, we will try something more formal.
 ```{r, smoother}
 Smoother <- function(ntwk,weight){
   NewLabels<-rep(0,length(V(ntwk)))
@@ -332,6 +336,9 @@ NT <- 200
 RandomMoransI <- rep(0,NT)
 SARsmoothMoransI <- rep(0,NT)
 set.seed(49)
+start_time <- Sys.time()
+cl <- parallel::makeCluster(2, setup_strategy = "sequential")
+
 for (i in 1:NT){
   # generate a random graph with random labels
   net <- BuildRandomNetwork(SizeOfOurNetwork)
@@ -363,6 +370,10 @@ hw_p <- ggplot(dfsm, aes(x = Smooth, y = MoransI)) +
     ggtitle("Moran's-I as a function of whether or not we smooth using SAR") 
 (hw_p)
 
+end_time <- Sys.time()
+cat("\n time taken= ", end_time - start_time)
+
+stopCluster(cl)
 
 ```
 
