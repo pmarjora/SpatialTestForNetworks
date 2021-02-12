@@ -567,7 +567,7 @@ BuildSemiCompleteNetwork <- function(SizeOfNetwork,CompleteSubnetworkSize){
   
   # finally, add a connection between each complete subgraph and the next
   for (RowCounter in 1:length(MyEdges2[,1])){
-    if  ( (MyEdges[RowCounter,1]%%CompleteSubnetworkSize==1) && (MyEdges[RowCounter,2]==MyEdges[RowCounter,1]+CompleteSubnetworkSize)){
+    if  ( (MyEdges2[RowCounter,1]%%CompleteSubnetworkSize==1) && (MyEdges2[RowCounter,2]==MyEdges2[RowCounter,1]+CompleteSubnetworkSize)){
         EdgePresent[RowCounter] <- 1      
     }
     
