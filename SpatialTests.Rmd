@@ -532,9 +532,8 @@ hw_p +
 ```
 
 
-Let's build a good network on which to expore correlated node labels. We will use a set of complete graphs joined to each other by a single  vertex.
+Let's build a good network on which to expore correlated node labels. We will use a set of complete graphs joined to each other by a single vertex.
 ```{r,   SemiComplete}
-
 BuildSemiCompleteNetwork <- function(SizeOfNetwork,CompleteSubnetworkSize){
   
   if (SizeOfNetwork%%CompleteSubnetworkSize!=0){
@@ -544,8 +543,6 @@ BuildSemiCompleteNetwork <- function(SizeOfNetwork,CompleteSubnetworkSize){
   
   MyNodes <- seq(1,SizeOfNetwork)
   NumberOfCompleteSubgraphs <- SizeOfNetwork/CompleteSubnetworkSize
-
-  
 
   x <- seq(1, SizeOfNetwork)
   y <- x
@@ -574,7 +571,6 @@ BuildSemiCompleteNetwork <- function(SizeOfNetwork,CompleteSubnetworkSize){
   }
 
   MyEdges3 <- cbind(MyEdges2,EdgePresent)
-  
   MyEdges4 <- MyEdges3[MyEdges3[,3]==1,]
 
   ThisNetwork <- graph_from_data_frame(d=as.data.frame(MyEdges4),vertices=as.data.frame(MyNodes), directed=F) 
@@ -582,6 +578,67 @@ BuildSemiCompleteNetwork <- function(SizeOfNetwork,CompleteSubnetworkSize){
   return (ThisNetwork)
   
 }
+```
+
+
+Add correlated node labels to such a network
+```{r, CorrelatedSemiComplete}
+SpatiallyCorrelatedLabels1 <- function(ntwk,SizeOfSemiCompleteComponents){
+
+  # label it and all its neighbors N(2,0.1), and everything else N(0,1).
+  V(ntwk)$MyAttribute <- 0
+  for (i in 1:SizeOfSemiCompleteComponents){
+    V(ntwk)$MyAttribute[i] <- rnorm(1,7,0.1)
+  } 
+  for (i in (SizeOfSemiCompleteComponents+1):length(V(ntwk))){
+      V(ntwk)$MyAttribute[i] <- rnorm(1,2,1)
+  } 
+  return (ntwk)
+}
+
+
+  
+  #cat("\nMorans-I: ",MoransI(distances(newnet,v=V(newnet),to=V(newnet)),V(newnet)$MyAttribute),"    expectation= ",-1/(length(V(newnet)$MyAttribute)-1))
+  
+  # Does it look significant?
+  #Results2 <-PermutationTest(newnet,500,1)
+#hist(Results2,breaks=20,col="grey")
+#abline(v=MoransI(DM,V(newnet)$MyAttribute),col="red")
+
+
+```
+
+Test..
+```{r}
+net<-BuildSemiCompleteNetwork(15,5)
+plot(net, edge.arrow.size=.5,  vertex.label.dist=1.5)
+net<-SpatiallyCorrelatedLabels1(net,5)
+V(net)$MyAttribute
+plot(net, edge.arrow.size=.5,  vertex.label.dist=1.5, vertex.size=5+4*V(net)$MyAttribute)
+
+# permute the attributes and repeat
+PermNtwk <- net
+V(PermNtwk)$MyAttribute <- sample(V(PermNtwk)$MyAttribute,size=length(V(PermNtwk)$MyAttribute),replace=FALSE)
+plot(PermNtwk, edge.arrow.size=.5,  vertex.label.dist=1.5, vertex.size=5+4*V(PermNtwk)$MyAttribute,main="Permuted")
+LISAnetPerm <- MyLISA(PermNtwk)
+plot(LISAnetPerm, edge.arrow.size=.5, vertex.label.color="black", vertex.label.dist=1.5,
+vertex.size=2*(0.01-min(V(LISAnetPerm)$LISAstat)+V(LISAnetPerm)$LISAstat))
+
+LISAnetPerm <- MyLISA(PermNtwk)
+plot(LISAnetPerm, edge.arrow.size=.5, vertex.label.color="black", vertex.label.dist=1.5,
+vertex.size=2*(0.01-min(V(LISAnetPerm)$LISAstat)+V(LISAnetPerm)$LISAstat))
+
+
+```
+
+
+Test for spatial structure:
+```{r}
+LISAnet <- MyLISA(net)
+plot(LISAnet, edge.arrow.size=.5, vertex.label.color="black", vertex.label.dist=1.5,
+vertex.size=2*(0.01-min(V(LISAnet)$LISAstat)+V(LISAnet)$LISAstat)) 
+
+
 ```
 
 
