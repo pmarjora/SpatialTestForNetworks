@@ -526,7 +526,7 @@ hw_p +
   geom_dotplot(binaxis='y', stackdir='center', dotsize=0.5) +
   ggtitle("Left=base; right=permuted") +
   geom_hline(yintercept=V(LISAnet)$LISAstat[FocalNode], linetype=2, color="red", size=1)
-
+ 
   #scale_fill_brewer(palette="Dark2")
 #violinplot(data=df$LISAval)
 ```
@@ -610,23 +610,24 @@ SpatiallyCorrelatedLabels1 <- function(ntwk,SizeOfSemiCompleteComponents){
 
 Test..
 ```{r}
-net<-BuildSemiCompleteNetwork(15,5)
+SubNetworkSize <- 5
+net<-BuildSemiCompleteNetwork(30,SubNetworkSize)
 plot(net, edge.arrow.size=.5,  vertex.label.dist=1.5)
-net<-SpatiallyCorrelatedLabels1(net,5)
+net<-SpatiallyCorrelatedLabels1(net,SubNetworkSize)
 V(net)$MyAttribute
-plot(net, edge.arrow.size=.5,  vertex.label.dist=1.5, vertex.size=5+4*V(net)$MyAttribute)
+plot(net, edge.arrow.size=.5,  vertex.label.dist=1.5, vertex.size=5+4*V(net)$MyAttribute,main="attributes")
+LISAnet <- MyLISA(net)
+plot(LISAnetPerm, edge.arrow.size=.5, vertex.label.color="black", vertex.label.dist=1.5,
+vertex.size=2*(0.01-min(V(LISAnetPerm)$LISAstat)+V(LISAnetPerm)$LISAstat),main="LISA values")
 
 # permute the attributes and repeat
 PermNtwk <- net
 V(PermNtwk)$MyAttribute <- sample(V(PermNtwk)$MyAttribute,size=length(V(PermNtwk)$MyAttribute),replace=FALSE)
-plot(PermNtwk, edge.arrow.size=.5,  vertex.label.dist=1.5, vertex.size=5+4*V(PermNtwk)$MyAttribute,main="Permuted")
+plot(PermNtwk, edge.arrow.size=.5,  vertex.label.dist=1.5, vertex.size=5+4*V(PermNtwk)$MyAttribute,main="Permuted Attributes")
 LISAnetPerm <- MyLISA(PermNtwk)
 plot(LISAnetPerm, edge.arrow.size=.5, vertex.label.color="black", vertex.label.dist=1.5,
-vertex.size=2*(0.01-min(V(LISAnetPerm)$LISAstat)+V(LISAnetPerm)$LISAstat))
+vertex.size=2*(0.01-min(V(LISAnetPerm)$LISAstat)+V(LISAnetPerm)$LISAstat),main="Permutated LISA values")
 
-LISAnetPerm <- MyLISA(PermNtwk)
-plot(LISAnetPerm, edge.arrow.size=.5, vertex.label.color="black", vertex.label.dist=1.5,
-vertex.size=2*(0.01-min(V(LISAnetPerm)$LISAstat)+V(LISAnetPerm)$LISAstat))
 
 
 ```
