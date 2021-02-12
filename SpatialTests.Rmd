@@ -47,9 +47,9 @@ RemoveSelfLoops <- function(x){
 }
 
 BuildRandomNetwork <- function(NetSize){
-  MyNodes <- seq(1,SizeOfOurNetwork)
+  MyNodes <- seq(1,NetSize)
 
-  x <- seq(1, SizeOfOurNetwork)
+  x <- seq(1, NetSize)
   y <- x
   
   MyEdges <- expand.grid(x = x, y = y)
@@ -146,7 +146,7 @@ DM <- distances(net,v=V(net),to=V(net))
 
 
 
-Calcluating Moran's (global) I. Moran's-I is defined as \[ I=\frac{N}{W}\frac{\sum_i \sum_j w_{ij} (x_i-\bar{x})(x_j-\bar{x})}{\sum_i(x_i-\bar{x})^2} \]
+Calculating Moran's (global) I. Moran's-I is defined as \[ I=\frac{N}{W}\frac{\sum_i \sum_j w_{ij} (x_i-\bar{x})(x_j-\bar{x})}{\sum_i(x_i-\bar{x})^2} \]
 ```{r, MoransI}
 
 MoransI <- function(DistanceMx, NodeAttributes){
@@ -236,7 +236,7 @@ FindNeighbors <- function(ntwk,focnode)+{
 (FindNeighbors(net,1))
 ```
 
-Smoothing the labels to make them correlated. Here we use a simple proof of principle scheme in ewhich we generate the labels independently and then smooth them by taking a weight average of each label and the label of its neighboring vertices. Later on, we will try something more formal.
+Smoothing the labels to make them correlated. Here we use a simple proof of principle scheme in which we generate the labels independently and then smooth them by taking a weight average of each label and the label of its neighboring vertices. Later on, we will try something more formal.
 ```{r, smoother}
 Smoother <- function(ntwk,weight){
   NewLabels<-rep(0,length(V(ntwk)))
@@ -301,7 +301,7 @@ And now for a more formal addition of spatial correlation, using correlated norm
 So, we generate data $y = (I_n - \rho W)^{-1} \times \epsilon$, where $\epsilon \sim MVN(0,I_n)$.
 Since $\epsilon \sim MVN(0,I_n)$ the independent version has attrributes with $Normal(0,1)$ distribution.
 ```{r, SARmodel}
-rho <- 0.5  # The degree of correlation 
+rho <- 0.8  # The degree of correlation 
 SARsmoother <- function(ntwk,rho)
 {
 #rho <- .5 # Spatial autocorrelation
@@ -330,37 +330,40 @@ attribs <- SARsmoother(net,0.5)
 net$MyAttributes <- SARsmoother(net,0.5)
 ```
 
-Now write some tests for the above, comparing them to models in which the attrivbutes are Normal(0,1).
-```{r, SARtest}
-NT <- 200
-RandomMoransI <- rep(0,NT)
-SARsmoothMoransI <- rep(0,NT)
-set.seed(49)
-start_time <- Sys.time()
-cl <- parallel::makeCluster(2, setup_strategy = "sequential")
 
-for (i in 1:NT){
+Now write some tests for the above, comparing them to models in which the attributes are Normal(0,1).
+```{r, SARtest}
+NT <- 100
+set.seed(49)
+
+start_time <- Sys.time()
+
+Idx <- 1:NT 
+RandomMoransI <- rep(0,NT)
+SARSmoothMoransI <- rep(0,NT)
+
+aaa<-lapply(Idx, function(x){
   # generate a random graph with random labels
   net <- BuildRandomNetwork(SizeOfOurNetwork)
   
   # calculate distances between nodes
   DM <- distances(net,v=V(net),to=V(net))
 
-  # generate indepen dent vertex attributes from a MVNormal(0,1)
+  # generate independent vertex attributes from a MVNormal(0,1)
   V(net)$MyAttribute <- rnorm(length(V(net)),0,1)
-  #V(net)$MyAttribute <- SARsmoother(net,0)
-  # calculate Moran's-I for this graph
-  RandomMoransI[i] <- MoransI(DM,V(net)$MyAttribute)
-  
+
+    # calculate Moran's-I for this graph
+  RandomMoransI[x] <<- MoransI(DM,V(net)$MyAttribute)
+
   # now generate spatial correlated vertex labels and recalculate Moran's-I
   V(net)$MyAttribute <- SARsmoother(net,0.8)
-  SARsmoothMoransI[i] <- MoransI(DM,V(net)$MyAttribute)
-}
+  SARSmoothMoransI[x] <<- MoransI(DM,V(net)$MyAttribute)
+})
 
 # compare via a violin plot
 RandomMoransI <- cbind(rep("random",NTimes),RandomMoransI)
-SARsmoothMoransI <- cbind(rep("smooth",NTimes),SARsmoothMoransI)
-I <- rbind(RandomMoransI,SARsmoothMoransI)
+SARSmoothMoransI <- cbind(rep("smooth",NTimes),SARSmoothMoransI)
+I <- rbind(RandomMoransI,SARSmoothMoransI)
 dfsm <- data.frame( "Smooth" = I[,1], "MoransI" = as.numeric(I[,2]))
 #df$dataN <- as.factor(df$dataN)
 
@@ -373,9 +376,49 @@ hw_p <- ggplot(dfsm, aes(x = Smooth, y = MoransI)) +
 end_time <- Sys.time()
 cat("\n time taken= ", end_time - start_time)
 
-stopCluster(cl)
+
 
 ```
+
+Old version of the above follows:
+
+```{r, oldSARtest}
+start_time <- Sys.time()
+RandomMoransI <- rep(0,NT)
+SARsmoothMoransI <- rep(0,NT)
+set.seed(49)
+for (i in 1:NT){
+  # generate a random graph with random labels
+  net <- BuildRandomNetwork(SizeOfOurNetwork)
+  
+  # calculate distances between nodes
+  DM <- distances(net,v=V(net),to=V(net))
+  # generate indepen dent vertex attributes from a MVNormal(0,1)
+  V(net)$MyAttribute <- rnorm(length(V(net)),0,1)
+  #V(net)$MyAttribute <- SARsmoother(net,0)
+  # calculate Moran's-I for this graph
+  RandomMoransI[i] <- MoransI(DM,V(net)$MyAttribute)
+  
+  # now generate spatial correlated vertex labels and recalculate Moran's-I
+  V(net)$MyAttribute <- SARsmoother(net,0.8)
+  SARsmoothMoransI[i] <- MoransI(DM,V(net)$MyAttribute)
+}
+# compare via a violin plot
+RandomMoransI <- cbind(rep("random",NTimes),RandomMoransI)
+SARsmoothMoransI <- cbind(rep("smooth",NTimes),SARsmoothMoransI)
+I <- rbind(RandomMoransI,SARsmoothMoransI)
+dfsm <- data.frame( "Smooth" = I[,1], "MoransI" = as.numeric(I[,2]))
+#df$dataN <- as.factor(df$dataN)
+hw_p <- ggplot(dfsm, aes(x = Smooth, y = MoransI)) +
+    geom_violin() + 
+    #geom_dotplot(binaxis='y', stackdir='center', dotsize=0.5, bin.width=60) +
+    ggtitle("Moran's-I as a function of whether or not we smooth using SAR") 
+(hw_p)
+end_time <- Sys.time()
+cat("\n time taken= ", end_time - start_time)
+
+```
+
 
 
 Assigning spatially correlated node labels
@@ -486,6 +529,59 @@ hw_p +
 
   #scale_fill_brewer(palette="Dark2")
 #violinplot(data=df$LISAval)
+```
+
+
+Let's build a good network on which to expore correlated node labels. We will use a set of complete graphs joined to each other by a single  vertex.
+```{r,   SemiComplete}
+
+BuildSemiCompleteNetwork <- function(SizeOfNetwork,CompleteSubnetworkSize){
+  
+  if (SizeOfNetwork%%CompleteSubnetworkSize!=0){
+    cat("\nProblem with arguments to BuildSemiCompleteNetwork()")
+    break
+  }
+  
+  MyNodes <- seq(1,SizeOfNetwork)
+  NumberOfCompleteSubgraphs <- SizeOfNetwork/CompleteSubnetworkSize
+
+  
+
+  x <- seq(1, SizeOfNetwork)
+  y <- x
+  
+  MyEdges <- expand.grid(x = x, y = y)
+  # make it undirected and with no self-loops
+  MyEdges2 <- MyEdges[MyEdges[,1]<MyEdges[,2],]
+
+  EdgePresent <- rep(0,length(MyEdges2[,1]))
+  #EdgePresent <- apply(as.matrix(EdgePresent),MARGIN=1,FUN=RandomEdges)
+
+  for (RowCounter in 1:length(MyEdges2[,1])){
+    if ( floor((MyEdges2[RowCounter,1]-1)/CompleteSubnetworkSize)==floor((MyEdges2[RowCounter,2]-1)/CompleteSubnetworkSize) ){
+        EdgePresent[RowCounter] <- 1
+    }else{
+      EdgePresent[RowCounter] <- 0
+    }
+  }
+  
+  # finally, add a connection between each complete subgraph and the next
+  for (RowCounter in 1:length(MyEdges2[,1])){
+    if  ( (MyEdges[RowCounter,1]%%CompleteSubnetworkSize==1) && (MyEdges[RowCounter,2]==MyEdges[RowCounter,1]+CompleteSubnetworkSize)){
+        EdgePresent[RowCounter] <- 1      
+    }
+    
+  }
+
+  MyEdges3 <- cbind(MyEdges2,EdgePresent)
+  
+  MyEdges4 <- MyEdges3[MyEdges3[,3]==1,]
+
+  ThisNetwork <- graph_from_data_frame(d=as.data.frame(MyEdges4),vertices=as.data.frame(MyNodes), directed=F) 
+  
+  return (ThisNetwork)
+  
+}
 ```
 
 
