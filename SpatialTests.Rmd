@@ -304,8 +304,7 @@ Since $\epsilon \sim MVN(0,I_n)$ the independent version has attrributes with $N
 rho <- 0.8  # The degree of correlation 
 SARsmoother <- function(ntwk,rho)
 {
-#rho <- .5 # Spatial autocorrelation
-# form edge matrix
+  # form edge matrix
   W <- as_adjacency_matrix(net, type = c("both"), names=FALSE, sparse=FALSE)
   n <- length(W[1,])
   #diag(W) <- 0
@@ -382,7 +381,7 @@ cat("\n time taken= ", end_time - start_time)
 
 Old version of the above follows:
 
-```{r, oldSARtest}
+```{r, oldSARtest, eval-FALSE}
 start_time <- Sys.time()
 RandomMoransI <- rep(0,NT)
 SARsmoothMoransI <- rep(0,NT)
@@ -420,15 +419,17 @@ cat("\n time taken= ", end_time - start_time)
 ```
 
 
-
+That didnt seem to work, so let's try something else. 
+We pick a focal node at random and label it and all it's neighbors with a 1,
+whereas everything else is labeled rnorm(0,1)
 Assigning spatially correlated node labels
 ```{r, Correlated}
 SpatiallyCorrelatedLabels1 <- function(ntwk,CentralNode){
 
   # label it and all its neighbors 1, and everything else 0.
-  V(ntwk)$MyAttribute <- 0
+  V(ntwk)$MyAttribute <- rnorm(length(V(ntwk)),0,1)
   V(ntwk)$MyAttribute[CentralNode] <- 1
-  for (i in 1:SizeOfOurNetwork){
+  for (i in 1:length(V(ntwk))){
     #if (distances(ntwk,CentralNode,i) == 1){
     #  V(ntwk)$MyAttribute[i] <- 1
     #}
@@ -440,7 +441,7 @@ SpatiallyCorrelatedLabels1 <- function(ntwk,CentralNode){
 }
 
   # Pick a focal node at random
-  FocalNode <- sample(1:length(net),1)
+  FocalNode <- sample(1:length(V(net)),1)
   cat("\nFocalNode: ",FocalNode)
   newnet <- SpatiallyCorrelatedLabels1(net,FocalNode)
   plot(newnet, edge.arrow.size=.5, vertex.color=ifelse(V(newnet)==FocalNode,"blue","red"), vertex.label.dist=1.5,
@@ -449,7 +450,7 @@ SpatiallyCorrelatedLabels1 <- function(ntwk,CentralNode){
   cat("\nMorans-I: ",MoransI(distances(newnet,v=V(newnet),to=V(newnet)),V(newnet)$MyAttribute),"    expectation= ",-1/(length(V(newnet)$MyAttribute)-1))
   
   # Does it look significant?
-  Results2 <-PermutationTest(newnet,500,1)
+  Results2 <-PermutationTest(newnet,100,1)
 hist(Results2,breaks=20,col="grey")
 abline(v=MoransI(DM,V(newnet)$MyAttribute),col="red")
 
@@ -481,6 +482,7 @@ MyLISA <- function(ntwk){
   }
   return (ntwk)
 }
+
 LISAnet <- MyLISA(net)
 plot(LISAnet, edge.arrow.size=.5, vertex.label.color="black", vertex.label.dist=1.5,
 vertex.size=2*(0.01-min(V(LISAnet)$LISAstat)+V(LISAnet)$LISAstat)) 
@@ -585,13 +587,13 @@ Add correlated node labels to such a network
 ```{r, CorrelatedSemiComplete}
 SpatiallyCorrelatedLabels1 <- function(ntwk,SizeOfSemiCompleteComponents){
 
-  # label it and all its neighbors N(2,0.1), and everything else N(0,1).
+  # label it and all its neighbors N(2,0.1), and everything else N(1,1).
   V(ntwk)$MyAttribute <- 0
   for (i in 1:SizeOfSemiCompleteComponents){
     V(ntwk)$MyAttribute[i] <- rnorm(1,7,0.1)
   } 
   for (i in (SizeOfSemiCompleteComponents+1):length(V(ntwk))){
-      V(ntwk)$MyAttribute[i] <- rnorm(1,2,1)
+      V(ntwk)$MyAttribute[i] <- rnorm(1,1,1)
   } 
   return (ntwk)
 }
@@ -610,39 +612,66 @@ SpatiallyCorrelatedLabels1 <- function(ntwk,SizeOfSemiCompleteComponents){
 
 Test..
 ```{r}
-SubNetworkSize <- 5
-net<-BuildSemiCompleteNetwork(30,SubNetworkSize)
+SubNetworkSize <- 8
+net<-BuildSemiCompleteNetwork(40,SubNetworkSize)
+DM <- distances(net,v=V(net),to=V(net))  # distance mx
+
 plot(net, edge.arrow.size=.5,  vertex.label.dist=1.5)
 net<-SpatiallyCorrelatedLabels1(net,SubNetworkSize)
 V(net)$MyAttribute
-plot(net, edge.arrow.size=.5,  vertex.label.dist=1.5, vertex.size=5+4*V(net)$MyAttribute,main="attributes")
+plot(net, edge.arrow.size=.5,  vertex.label.dist=1.5, vertex.size=5+2*V(net)$MyAttribute,main="attributes")
 LISAnet <- MyLISA(net)
-plot(LISAnetPerm, edge.arrow.size=.5, vertex.label.color="black", vertex.label.dist=1.5,
-vertex.size=2*(0.01-min(V(LISAnetPerm)$LISAstat)+V(LISAnetPerm)$LISAstat),main="LISA values")
+plot(LISAnet, edge.arrow.size=.5, vertex.label.color="black", vertex.label.dist=1.5,
+vertex.size=0.25*(0.01-min(V(LISAnet)$LISAstat)+V(LISAnet)$LISAstat),main="LISA values")
+
+# Moran-s I, for which we need a distance mx
+cat("\nMoran's-I:",MoransI(DM,V(net)$MyAttribute))
 
 # permute the attributes and repeat
 PermNtwk <- net
 V(PermNtwk)$MyAttribute <- sample(V(PermNtwk)$MyAttribute,size=length(V(PermNtwk)$MyAttribute),replace=FALSE)
-plot(PermNtwk, edge.arrow.size=.5,  vertex.label.dist=1.5, vertex.size=5+4*V(PermNtwk)$MyAttribute,main="Permuted Attributes")
+plot(PermNtwk, edge.arrow.size=.5,  vertex.label.dist=1.5, vertex.size=5+2*V(PermNtwk)$MyAttribute,main="Permuted Attributes")
 LISAnetPerm <- MyLISA(PermNtwk)
 plot(LISAnetPerm, edge.arrow.size=.5, vertex.label.color="black", vertex.label.dist=1.5,
-vertex.size=2*(0.01-min(V(LISAnetPerm)$LISAstat)+V(LISAnetPerm)$LISAstat),main="Permutated LISA values")
-
-
+vertex.size=0.25*(0.01-min(V(LISAnetPerm)$LISAstat)+V(LISAnetPerm)$LISAstat),main="Permutated LISA values")
+cat("\nPermuted Moran's-I:",MoransI(DM,V(PermNtwk)$MyAttribute))
 
 ```
 
 
-Test for spatial structure:
+Test for spatial structure by looking at the maximum value of the LISA stat across nodes for each graph
 ```{r}
+
+net<-BuildSemiCompleteNetwork(40,SubNetworkSize)
+net<-SpatiallyCorrelatedLabels1(net,SubNetworkSize)
+DM <- distances(net,v=V(net),to=V(net))  # distance mx
 LISAnet <- MyLISA(net)
 plot(LISAnet, edge.arrow.size=.5, vertex.label.color="black", vertex.label.dist=1.5,
-vertex.size=2*(0.01-min(V(LISAnet)$LISAstat)+V(LISAnet)$LISAstat)) 
-
-
+vertex.size=2*(0.01-min(V(LISAnet)$LISAstat)+V(LISAnet)$LISAstat),main="LISA stats on original network")
+ObservedMaxLISA <- max(V(LISAnet)$LISAstat)
+ObservedMoransI <- MoransI(DM,V(net)$MyAttribute)
+NR <- 100
+PermedMaxLISA <- rep(0,NR)
+PermedMoransI <- rep(0,NR)
+for (i in 1:NR){
+  PermNtwk <- net
+  V(PermNtwk)$MyAttribute <- sample(V(PermNtwk)$MyAttribute,size=length(V(PermNtwk)$MyAttribute),replace=FALSE)
+  #plot(PermNtwk, edge.arrow.size=.5,  vertex.label.dist=1.5, vertex.size=5+2*V(PermNtwk)$MyAttribute,main="Permuted Attributes")
+  LISAnetPerm <- MyLISA(PermNtwk)
+  PermedMaxLISA[i] <- max(V(LISAnetPerm)$LISAstat)
+  PermedMoransI[i] <- MoransI(DM,V(PermNtwk)$MyAttribute)
+}
+hist(PermedMaxLISA,main="Null distn of max(LISA stats); observed value shown in red",breaks=50,xlim=c(0,ObservedMaxLISA+10))
+abline(v=ObservedMaxLISA,col="red",lty=2)
+hist(PermedMoransI,main="Null distn of Moran's-I; observed value shown in red",breaks=50,xlim=c(0,max(ObservedMoransI,max(PermedMoransI))))
+abline(v=ObservedMoransI,col="red",lty=2)
 ```
 
+That works much better!
 
+
+
+Other stuff follows.... (all switched off for now)
 
 Read sbml files...
 ```{r, SBML, eval=FALSE}
